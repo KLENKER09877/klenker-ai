@@ -5,88 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KLENKER-AI MINI</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #1a1a24;
-            color: #ffffff;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        .chat-container {
-            width: 100%;
-            max-width: 600px;
-            margin: 0 auto;
-            background: #222232;
-            border-radius: 16px;
-            padding: 25px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-        }
-        h2 {
-            margin-top: 0;
-            color: #00ffcc;
-            text-align: center;
-            font-size: 24px;
-            letter-spacing: 1px;
-        }
-        .settings, .input-area {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-bottom: 15px;
-        }
-        button, select, textarea {
-            padding: 14px;
-            border-radius: 10px;
-            border: 1px solid #3d3d5c;
-            background: #2d2d42;
-            color: white;
-            font-size: 16px;
-            outline: none;
-        }
-        textarea:focus, select:focus {
-            border-color: #00ffcc;
-        }
-        button {
-            background: #00ffcc;
-            color: #12121a;
-            cursor: pointer;
-            font-weight: bold;
-            border: none;
-            transition: background 0.2s;
-        }
-        button:hover { background: #00ccaa; }
-        .output {
-            margin-top: 15px;
-            padding: 15px;
-            background: #1a1a24;
-            border-radius: 10px;
-            border: 1px solid #2d2d42;
-            min-height: 60px;
-            max-height: 220px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            line-height: 1.5;
-        }
-        .status-badge {
-            text-align: center;
-            font-size: 12px;
-            color: #8888aa;
-            margin-bottom: 10px;
-        }
+        body { font-family: Arial, sans-serif; background-color: #1a1a24; color: #ffffff; display: flex; flex-direction: column; justify-content: center; height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        .chat-container { width: 100%; max-width: 600px; margin: 0 auto; background: #222232; border-radius: 16px; padding: 25px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+        h2 { margin-top: 0; color: #00ffcc; text-align: center; font-size: 24px; }
+        .settings, .input-area { display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px; }
+        input, button, select, textarea { padding: 14px; border-radius: 10px; border: 1px solid #3d3d5c; background: #2d2d42; color: white; font-size: 16px; outline: none; }
+        input:focus, textarea:focus { border-color: #00ffcc; }
+        button { background: #00ffcc; color: #12121a; cursor: pointer; font-weight: bold; border: none; }
+        .output { margin-top: 15px; padding: 15px; background: #1a1a24; border-radius: 10px; border: 1px solid #2d2d42; min-height: 60px; max-height: 220px; overflow-y: auto; white-space: pre-wrap; }
     </style>
 </head>
 <body>
 
 <div class="chat-container">
     <h2>KLENKER-AI MINI</h2>
-    <div class="status-badge">Режим: Бесплатный (Без API ключа)</div>
     
     <div class="settings">
+        <input type="password" id="hfToken" placeholder="Вставь бесплатный токен Hugging Face (hf_...)">
         <label for="voiceSelect">Выбери мужской голос:</label>
         <select id="voiceSelect"><option>Загрузка голосов...</option></select>
     </div>
@@ -96,7 +31,7 @@
         <button id="sendBtn">Спросить KLENKER-AI</button>
     </div>
 
-    <div class="output" id="chatOutput">Система готова. Задайте вопрос...</div>
+    <div class="output" id="chatOutput">Система готова. Введите токен hf_... и задайте вопрос.</div>
 </div>
 
 <script>
@@ -108,12 +43,10 @@
         voices = window.speechSynthesis.getVoices();
         voiceSelect.innerHTML = '';
         const ruVoices = voices.filter(voice => voice.lang.includes('ru'));
-
         if (ruVoices.length === 0) {
             voiceSelect.innerHTML = '<option value="">Русские голоса не найдены</option>';
             return;
         }
-
         ruVoices.forEach(voice => {
             const option = document.createElement('option');
             option.value = voice.name;
@@ -122,9 +55,7 @@
         });
     }
 
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-        window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
+    if (window.speechSynthesis.onvoiceschanged !== undefined) window.speechSynthesis.onvoiceschanged = loadVoices;
     setTimeout(loadVoices, 500);
 
     function speakText(text) {
@@ -138,34 +69,45 @@
     }
 
     document.getElementById('sendBtn').addEventListener('click', async () => {
+        const token = document.getElementById('hfToken').value.trim();
         const textInput = document.getElementById('userInput').value.trim();
+
+        if (!token) { alert('Пожалуйста, вставь токен hf_...'); return; }
         if (!textInput) return;
 
         chatOutput.textContent = 'KLENKER-AI думает...';
-        document.getElementById('userInput').value = '';
 
         try {
-            const response = await fetch('https://aryahcr.cc', {
+            // Запрос к бесплатной и мощной модели Qwen-2.5 от Alibaba через Hugging Face
+            const response = await fetch('https://huggingface.co', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({
-                    messages: [
-                        { 
-                            role: 'user', 
-                            content: `Действуй по инструкции: Тебя зовут KLENKER-AI MINI. Всегда представляйся именно так. Отвечай очень кратко и понятно. Твой ответ будет прочитан роботом вслух. А теперь ответь пользователю на вопрос: ${textInput}` 
-                        }
-                    ],
-                    model: 'gpt-4' 
+                    inputs: `<|im_start|>system\nТебя зовут KLENKER-AI MINI. Ты умный ИИ. Отвечай кратко, на русском языке.<|im_end|>\n<|im_start|>user\n${textInput}<|im_end|>\n<|im_start|>assistant\n`,
+                    parameters: { max_new_tokens: 150 }
                 })
             });
 
             const data = await response.json();
-            const aiResponse = data.gpt || data.message || "Ой, я задумался. Попробуй ещё раз!";
+            
+            if (data.error) {
+                chatOutput.textContent = 'Ошибка: ' + data.error;
+                return;
+            }
+
+            let aiResponse = data[0].generated_text;
+            // Отрезаем промпт, оставляем только чистый ответ ИИ
+            aiResponse = aiResponse.split('<|im_start|>assistant\n')[1] || aiResponse;
+            aiResponse = aiResponse.replace('<|im_end|>', '').trim();
+
             chatOutput.textContent = aiResponse;
             speakText(aiResponse);
 
         } catch (error) {
-            chatOutput.textContent = 'Ошибка связи. Проверь интернет на планшете.';
+            chatOutput.textContent = 'Ошибка сети. Попробуй еще раз.';
             console.error(error);
         }
     });
